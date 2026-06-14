@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🔧 Sparepart Lookup — MIXING</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono:wght@400;600&display=swap');
+
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --card: #21253a;
+    --border: #2e3350;
+    --accent: #4f8ef7;
+    --accent2: #7c5cfc;
+    --green: #2ecc71;
+    --yellow: #f0c040;
+    --red: #e05555;
+    --text: #e8eaf6;
+    --muted: #7b82a8;
+    --copy-bg: #2a2f4a;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans Thai', sans-serif;
+    min-height: 100vh;
+  }
+
+  /* ── UPLOAD SCREEN ── */
+  #uploadScreen {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 20px;
+  }
+
+  .upload-logo {
+    width: 64px; height: 64px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 18px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 30px;
+    margin-bottom: 20px;
+  }
+
+  #uploadScreen h1 {
+    font-size: 22px; font-weight: 600;
+    margin-bottom: 6px;
+    text-align: center;
+  }
+
+  #uploadScreen p {
+    color: var(--muted);
+    font-size: 14px;
+    text-align: center;
+    margin-bottom: 32px;
+  }
+
+  .drop-zone {
+    width: 100%;
+    max-width: 440px;
+    border: 2px dashed var(--border);
+    border-radius: 18px;
+    padding: 40px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    position: relative;
+  }
+
+  .drop-zone:hover, .drop-zone.dragover {
+    border-color: var(--accent);
+    background: rgba(79,142,247,0.05);
+  }
+
+  .drop-zone input[type=file] {
+    position: absolute; inset: 0;
+    opacity: 0; cursor: pointer;
+    width: 100%; height: 100%;
+  }
+
+  .drop-icon { font-size: 40px; margin-bottom: 12px; }
+
+  .drop-zone h3 {
+    font-size: 15px; font-weight: 600;
+    margin-bottom: 6px;
+  }
+
+  .drop-zone p {
+    font-size: 13px; color: var(--muted);
+    margin-bottom: 0;
+  }
+
+  .browse-btn {
+    display: inline-block;
+    margin-top: 16px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 22px;
+    font-size: 14px;
+    font-family: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    pointer-events: none;
+  }
+
+  .format-hint {
+    margin-top: 20px;
+    font-size: 12px;
+    color: var(--muted);
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 16px;
+    max-width: 440px;
+    width: 100%;
+    text-align: left;
+    line-height: 1.7;
+  }
+
+  .format-hint strong { color: var(--text); }
+
+  .error-msg {
+    margin-top: 14px;
+    background: rgba(224,85,85,0.12);
+    border: 1px solid var(--red);
+    border-radius: 10px;
+    padding: 10px 16px;
+    color: var(--red);
+    font-size: 13px;
+    max-width: 440px;
+    width: 100%;
+    display: none;
+  }
+
+  /* ── MAIN APP SCREEN ── */
+  #appScreen { display: none; }
+
+  header {
+    background: linear-gradient(135deg, #1a1d27 0%, #161926 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 20px 24px 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .header-top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .logo {
+    width: 38px; height: 38px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  .header-title h1 { font-size: 17px; font-weight: 600; letter-spacing: 0.3px; }
+  .header-title p { font-size: 12px; color: var(--muted); margin-top: 1px; }
+
+  .header-actions {
+    margin-left: auto;
+  }
+
+  .reload-btn {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--muted);
+    font-size: 12px;
+    font-family: inherit;
+    padding: 6px 12px;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+  }
+
+  .reload-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .stats-strip {
+    display: flex;
+    gap: 20px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .stats-strip span strong { color: var(--accent); font-weight: 600; }
+
+  .search-wrap { position: relative; margin-top: 12px; }
+  .search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 16px; pointer-events: none; }
+
+  #searchInput {
+    width: 100%;
+    background: var(--card);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 14px 12px 42px;
+    font-size: 15px;
+    font-family: inherit;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  #searchInput:focus { border-color: var(--accent); }
+  #searchInput::placeholder { color: var(--muted); }
+
+  .clear-btn {
+    position: absolute; right: 12px; top: 50%;
+    transform: translateY(-50%);
+    background: var(--border); border: none; color: var(--muted);
+    width: 24px; height: 24px; border-radius: 50%;
+    cursor: pointer; font-size: 13px;
+    display: none; align-items: center; justify-content: center;
+  }
+  .clear-btn.show { display: flex; }
+
+  main { padding: 16px; max-width: 900px; margin: 0 auto; }
+  .result-bar { font-size: 13px; color: var(--muted); margin-bottom: 12px; padding: 0 2px; }
+  .result-bar strong { color: var(--text); }
+
+  .results-grid { display: flex; flex-direction: column; gap: 10px; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 16px;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+
+  .card:hover {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(79,142,247,0.08);
+  }
+
+  .card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+
+  .desc { font-size: 14px; font-weight: 500; line-height: 1.5; flex: 1; word-break: break-word; }
+  .desc mark { background: rgba(79,142,247,0.25); color: #8cb8ff; border-radius: 3px; padding: 0 1px; }
+
+  .mat-pill {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--copy-bg); border: 1px solid var(--border);
+    border-radius: 8px; padding: 5px 10px; flex-shrink: 0;
+  }
+
+  .mat-num { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; color: var(--accent); letter-spacing: 0.5px; }
+
+  .copy-icon {
+    background: none; border: none; color: var(--muted);
+    cursor: pointer; padding: 2px; border-radius: 4px;
+    font-size: 13px; display: flex; align-items: center;
+    transition: color 0.15s;
+  }
+  .copy-icon:hover { color: var(--accent); }
+  .copy-icon.copied { color: var(--green); }
+
+  .card-bottom { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+
+  .tag { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); background: rgba(255,255,255,0.04); border-radius: 6px; padding: 4px 9px; }
+  .tag.stock-ok { color: var(--green); }
+  .tag.stock-low { color: var(--yellow); }
+  .tag.stock-zero { color: var(--red); }
+
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--muted); }
+  .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+  .empty-state p { font-size: 15px; }
+  .empty-state small { font-size: 13px; margin-top: 6px; display: block; }
+
+  .hint-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; justify-content: center; }
+  .chip { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 6px 14px; font-size: 12px; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+  .chip:hover { border-color: var(--accent); background: rgba(79,142,247,0.1); color: var(--accent); }
+
+  .toast {
+    position: fixed; bottom: 24px; left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--green); color: #fff;
+    padding: 10px 20px; border-radius: 10px;
+    font-size: 13px; font-weight: 500;
+    transition: transform 0.3s cubic-bezier(.34,1.56,.64,1);
+    z-index: 999; pointer-events: none;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* loading */
+  .loading-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(15,17,23,0.85);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .loading-overlay.show { display: flex; }
+  .spinner {
+    width: 40px; height: 40px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @media (max-width: 500px) {
+    header { padding: 16px 16px 12px; }
+    .card { padding: 12px 13px; }
+    .desc { font-size: 13.5px; }
+    main { padding: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- UPLOAD SCREEN -->
+<div id="uploadScreen">
+  <div class="upload-logo">🔧</div>
+  <h1>Sparepart Lookup</h1>
+  <p>อัปโหลดไฟล์ Excel จาก SAP เพื่อเริ่มค้นหา</p>
+
+  <div class="drop-zone" id="dropZone">
+    <input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
+    <div class="drop-icon">📂</div>
+    <h3>ลากไฟล์มาวางที่นี่</h3>
+    <p>หรือคลิกเพื่อเลือกไฟล์</p>
+    <div class="browse-btn">เลือกไฟล์</div>
+  </div>
+
+  <div class="format-hint">
+    <strong>รองรับไฟล์:</strong> .xlsx, .xls, .csv<br>
+    <strong>คอลัมน์ที่ต้องมี:</strong> Material, Material Description, Storage location, Base Unit of Measure, Unrestricted
+  </div>
+
+  <div class="error-msg" id="errorMsg"></div>
+</div>
+
+<!-- LOADING -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <span style="color:var(--muted);font-size:14px">กำลังอ่านไฟล์...</span>
+</div>
+
+<!-- MAIN APP -->
+<div id="appScreen">
+  <header>
+    <div class="header-top">
+      <div class="logo">🔧</div>
+      <div class="header-title">
+        <h1>Sparepart Lookup</h1>
+        <p id="fileLabel">MIXING · Plant 1000</p>
+      </div>
+      <div class="header-actions">
+        <button class="reload-btn" onclick="resetApp()">⬆ อัปโหลดใหม่</button>
+      </div>
+    </div>
+    <div class="stats-strip">
+      <span>รายการทั้งหมด <strong id="totalCount">0</strong> รายการ</span>
+      <span>ข้อมูลจาก <strong>SAP</strong></span>
+    </div>
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="searchInput" placeholder="พิมพ์ชื่อ, รหัส, หรือ Part Number..." autocomplete="off" spellcheck="false">
+      <button class="clear-btn" id="clearBtn">✕</button>
+    </div>
+  </header>
+  <main>
+    <div class="result-bar" id="resultBar"></div>
+    <div class="results-grid" id="results"></div>
+  </main>
+</div>
+
+<div class="toast" id="toast">✓ คัดลอก Material Number แล้ว</div>
+
+<script>
+let DATA = [];
+let HINTS = [];
+
+// ── File upload handling ──
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const errorMsg = document.getElementById('errorMsg');
+const loadingOverlay = document.getElementById('loadingOverlay');
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file) processFile(file);
+});
+
+fileInput.addEventListener('change', () => {
+  if (fileInput.files[0]) processFile(fileInput.files[0]);
+});
+
+function showError(msg) {
+  errorMsg.textContent = msg;
+  errorMsg.style.display = 'block';
+}
+
+function processFile(file) {
+  errorMsg.style.display = 'none';
+  loadingOverlay.classList.add('show');
+
+  setTimeout(() => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const wb = XLSX.read(e.target.result, { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+        if (rows.length === 0) {
+          loadingOverlay.classList.remove('show');
+          showError('ไม่พบข้อมูลในไฟล์ กรุณาตรวจสอบ sheet แรก');
+          return;
+        }
+
+        // detect columns flexibly
+        const sample = rows[0];
+        const keys = Object.keys(sample);
+
+        const findCol = (...candidates) => keys.find(k => candidates.some(c => k.toLowerCase().includes(c.toLowerCase()))) || '';
+
+        const colMat = findCol('Material', 'mat', 'รหัส');
+        const colDesc = findCol('Description', 'Desc', 'ชื่อ', 'Name');
+        const colLoc = findCol('Storage location', 'Location', 'loc', 'คลัง', 'ที่เก็บ');
+        const colUnit = findCol('Base Unit', 'Unit', 'หน่วย');
+        const colQty = findCol('Unrestricted', 'Qty', 'Stock', 'จำนวน', 'คงเหลือ');
+
+        if (!colMat || !colDesc) {
+          loadingOverlay.classList.remove('show');
+          showError('ไม่พบคอลัมน์ Material หรือ Material Description กรุณาตรวจสอบไฟล์');
+          return;
+        }
+
+        DATA = rows
+          .filter(r => String(r[colMat]).trim() !== '' && /\d/.test(String(r[colMat])))
+          .map(r => ({
+            mat: String(r[colMat]).trim(),
+            desc: String(r[colDesc]).trim(),
+            loc: colLoc ? String(r[colLoc]).trim() : '-',
+            unit: colUnit ? String(r[colUnit]).trim() : '-',
+            qty: colQty ? String(r[colQty]).trim() : '0',
+          }));
+
+        if (DATA.length === 0) {
+          loadingOverlay.classList.remove('show');
+          showError('ไม่พบข้อมูลที่ถูกต้อง กรุณาตรวจสอบว่าคอลัมน์ Material มีตัวเลข');
+          return;
+        }
+
+        // build hints from top keywords
+        const wordCount = {};
+        DATA.forEach(d => {
+          d.desc.split(/[\s_\-\/]+/).forEach(w => {
+            if (w.length >= 3) wordCount[w] = (wordCount[w] || 0) + 1;
+          });
+        });
+        HINTS = Object.entries(wordCount).sort((a,b)=>b[1]-a[1]).slice(0,8).map(e=>e[0]);
+
+        document.getElementById('totalCount').textContent = DATA.length;
+        document.getElementById('fileLabel').textContent = `${file.name} · ${DATA.length} รายการ`;
+
+        loadingOverlay.classList.remove('show');
+        document.getElementById('uploadScreen').style.display = 'none';
+        document.getElementById('appScreen').style.display = 'block';
+
+        render('');
+      } catch(err) {
+        loadingOverlay.classList.remove('show');
+        showError('อ่านไฟล์ไม่ได้: ' + err.message);
+      }
+    };
+    reader.onerror = () => {
+      loadingOverlay.classList.remove('show');
+      showError('เกิดข้อผิดพลาดในการอ่านไฟล์');
+    };
+    reader.readAsArrayBuffer(file);
+  }, 100);
+}
+
+function resetApp() {
+  DATA = [];
+  document.getElementById('searchInput').value = '';
+  document.getElementById('appScreen').style.display = 'none';
+  document.getElementById('uploadScreen').style.display = 'flex';
+  fileInput.value = '';
+}
+
+// ── Search & render ──
+const input = document.getElementById('searchInput');
+const resultsEl = document.getElementById('results');
+const resultBar = document.getElementById('resultBar');
+const clearBtn = document.getElementById('clearBtn');
+const toast = document.getElementById('toast');
+
+function escapeRegex(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
+function highlight(text, query) {
+  if (!query) return text;
+  return text.replace(new RegExp(`(${escapeRegex(query)})`, 'gi'), '<mark>$1</mark>');
+}
+
+function stockClass(qty) {
+  const n = parseFloat(qty);
+  if (isNaN(n) || n === 0) return 'stock-zero';
+  if (n <= 5) return 'stock-low';
+  return 'stock-ok';
+}
+
+function stockIcon(qty) {
+  const n = parseFloat(qty);
+  if (isNaN(n) || n === 0) return '⭕';
+  if (n <= 5) return '⚠️';
+  return '✅';
+}
+
+let copyTimer = null;
+
+function copyMat(mat, btn) {
+  navigator.clipboard.writeText(mat).then(() => {
+    btn.classList.add('copied');
+    btn.textContent = '✓';
+    showToast();
+    clearTimeout(copyTimer);
+    copyTimer = setTimeout(() => { btn.classList.remove('copied'); btn.textContent = '⧉'; }, 2000);
+  });
+}
+
+let toastTimer = null;
+function showToast() {
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 2000);
+}
+
+function render(query) {
+  const q = query.trim().toLowerCase();
+  const filtered = q
+    ? DATA.filter(d => d.desc.toLowerCase().includes(q) || d.mat.includes(q))
+    : DATA;
+
+  resultBar.innerHTML = q
+    ? `พบ <strong>${filtered.length}</strong> รายการ สำหรับ "<strong>${query.trim()}</strong>"`
+    : `แสดงทั้งหมด <strong>${DATA.length}</strong> รายการ`;
+
+  if (filtered.length === 0) {
+    resultsEl.innerHTML = `
+      <div class="empty-state">
+        <div class="icon">🔎</div>
+        <p>ไม่พบรายการ "<strong>${query.trim()}</strong>"</p>
+        <small>ลองค้นหาด้วยคำอื่น หรือตรวจสอบใน SAP โดยตรง</small>
+        <div class="hint-chips">${HINTS.map(h=>`<span class="chip" onclick="setQuery('${h}')">${h}</span>`).join('')}</div>
+      </div>`;
+    return;
+  }
+
+  resultsEl.innerHTML = filtered.map(d => {
+    const sc = stockClass(d.qty);
+    const si = stockIcon(d.qty);
+    const qtyNum = parseFloat(d.qty);
+    const qtyDisplay = isNaN(qtyNum) ? d.qty : qtyNum.toLocaleString();
+    return `
+    <div class="card">
+      <div class="card-top">
+        <div class="desc">${highlight(d.desc, query.trim())}</div>
+        <div class="mat-pill">
+          <span class="mat-num">${highlight(d.mat, query.trim())}</span>
+          <button class="copy-icon" onclick="copyMat('${d.mat}', this)" title="คัดลอก">⧉</button>
+        </div>
+      </div>
+      <div class="card-bottom">
+        <span class="tag ${sc}">${si} Stock: ${qtyDisplay} ${d.unit}</span>
+        <span class="tag">📍 ${d.loc}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function setQuery(val) {
+  input.value = val;
+  input.dispatchEvent(new Event('input'));
+  input.focus();
+}
+
+input.addEventListener('input', () => {
+  clearBtn.classList.toggle('show', input.value.length > 0);
+  render(input.value);
+});
+
+clearBtn.addEventListener('click', () => {
+  input.value = '';
+  clearBtn.classList.remove('show');
+  render('');
+  input.focus();
+});
+</script>
+</body>
+</html>
