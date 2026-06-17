@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🔧 Sparepart Lookup — MIXING</title>
+<script src="data.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono:wght@400;600&display=swap');
+  :root{--bg:#0f1117;--card:#21253a;--border:#2e3350;--accent:#4f8ef7;--accent2:#7c5cfc;--green:#2ecc71;--yellow:#f0c040;--red:#e05555;--text:#e8eaf6;--muted:#7b82a8;--copy-bg:#2a2f4a}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans Thai',sans-serif;min-height:100vh}
+
+  header{background:linear-gradient(135deg,#1a1d27,#161926);border-bottom:1px solid var(--border);padding:20px 24px 16px;position:sticky;top:0;z-index:100}
+  .header-top{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+  .logo{width:38px;height:38px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+  .header-title h1{font-size:17px;font-weight:600}
+  .header-title p{font-size:12px;color:var(--muted);margin-top:1px}
+  .stats-strip{display:flex;gap:20px;font-size:12px;color:var(--muted);margin-bottom:12px}
+  .stats-strip strong{color:var(--accent);font-weight:600}
+
+  .search-wrap{position:relative}
+  .search-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:16px;pointer-events:none}
+  #searchInput{width:100%;background:var(--card);border:1.5px solid var(--border);border-radius:12px;padding:12px 42px;font-size:15px;font-family:inherit;color:var(--text);outline:none;transition:border-color .2s}
+  #searchInput:focus{border-color:var(--accent)}
+  #searchInput::placeholder{color:var(--muted)}
+  .clear-btn{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:var(--border);border:none;color:var(--muted);width:24px;height:24px;border-radius:50%;cursor:pointer;font-size:13px;display:none;align-items:center;justify-content:center}
+  .clear-btn.show{display:flex}
+
+  main{padding:16px;max-width:960px;margin:0 auto}
+  .result-bar{font-size:13px;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .result-bar strong{color:var(--text)}
+
+  .results-list{display:flex;flex-direction:column;gap:10px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;transition:border-color .15s,box-shadow .15s}
+  .card:hover{border-color:rgba(79,142,247,.5);box-shadow:0 0 0 3px rgba(79,142,247,.06)}
+  .card-inner{padding:14px 16px}
+  .card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+  .desc{font-size:14px;font-weight:500;line-height:1.5;flex:1;word-break:break-word}
+  .desc mark{background:rgba(79,142,247,.25);color:#8cb8ff;border-radius:3px;padding:0 1px}
+  .mat-pill{display:flex;align-items:center;gap:6px;background:var(--copy-bg);border:1px solid var(--border);border-radius:8px;padding:5px 10px;flex-shrink:0}
+  .mat-num{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;color:var(--accent);letter-spacing:.5px}
+  .copy-icon{background:none;border:none;color:var(--muted);cursor:pointer;padding:2px;border-radius:4px;font-size:14px;line-height:1;transition:color .15s}
+  .copy-icon:hover{color:var(--accent)}.copy-icon.copied{color:var(--green)}
+  .card-bottom{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center}
+  .tag{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);background:rgba(255,255,255,.04);border-radius:6px;padding:4px 9px}
+  .tag.stock-ok{color:var(--green)}.tag.stock-low{color:var(--yellow)}.tag.stock-zero{color:var(--red)}
+
+  .empty-state{text-align:center;padding:60px 20px;color:var(--muted)}
+  .empty-state .icon{font-size:48px;margin-bottom:12px}
+  .empty-state p{font-size:15px}.empty-state small{font-size:13px;margin-top:6px;display:block}
+  .hint-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;justify-content:center}
+  .chip{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:6px 14px;font-size:12px;cursor:pointer;transition:border-color .15s,background .15s}
+  .chip:hover{border-color:var(--accent);background:rgba(79,142,247,.1);color:var(--accent)}
+
+  .pagination{display:flex;justify-content:center;align-items:center;gap:8px;margin-top:20px;padding-bottom:32px;flex-wrap:wrap}
+  .page-btn{background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-size:13px;font-family:inherit;padding:7px 14px;cursor:pointer;transition:border-color .15s,color .15s}
+  .page-btn:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+  .page-btn.active{border-color:var(--accent);color:var(--accent);font-weight:600}
+  .page-btn:disabled{opacity:.35;cursor:default}
+  .page-info{font-size:13px;color:var(--muted)}
+
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--green);color:#fff;padding:10px 20px;border-radius:10px;font-size:13px;font-weight:500;transition:transform .3s cubic-bezier(.34,1.56,.64,1);z-index:999;pointer-events:none}
+  .toast.show{transform:translateX(-50%) translateY(0)}
+
+  @media(max-width:500px){
+    header{padding:14px 14px 12px}
+    .card-inner{padding:11px 12px}
+    .desc{font-size:13px}
+    main{padding:10px}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="header-top">
+    <div class="logo">🔧</div>
+    <div class="header-title">
+      <h1>Sparepart Lookup</h1>
+      <p>MIXING · Plant 1000</p>
+    </div>
+  </div>
+  <div class="stats-strip">
+    <span>รายการทั้งหมด <strong id="totalCount">0</strong> รายการ</span>
+  </div>
+  <div class="search-wrap">
+    <span class="search-icon">🔍</span>
+    <input type="text" id="searchInput" placeholder="พิมพ์ชื่อ, รหัส Material, Location..." autocomplete="off" spellcheck="false">
+    <button class="clear-btn" id="clearBtn">✕</button>
+  </div>
+</header>
+
+<main>
+  <div class="result-bar" id="resultBar"></div>
+  <div class="results-list" id="results"></div>
+  <div class="pagination" id="pagination"></div>
+</main>
+
+<div class="toast" id="toast">✓ คัดลอก Material Number แล้ว</div>
+
+<script>
+// ─── state ────────────────────────────────────────────────────────────────
+const PAGE_SIZE = 50;
+let filtered = [], currentPage = 1;
+
+const wc = {};
+SPAREPART_DATA.forEach(d => d.desc.split(/[\s_\-\/]+/).forEach(w=>{if(w.length>=3)wc[w]=(wc[w]||0)+1;}));
+const HINTS = Object.entries(wc).sort((a,b)=>b[1]-a[1]).slice(0,8).map(e=>e[0]);
+document.getElementById('totalCount').textContent = SPAREPART_DATA.length.toLocaleString();
+
+// ─── helpers ──────────────────────────────────────────────────────────────
+function escRe(s){return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}
+function hl(t,q){return q?t.replace(new RegExp(`(${escRe(q)})`,'gi'),'<mark>$1</mark>'):t}
+function stockCls(v){return v===0?'stock-zero':v<=5?'stock-low':'stock-ok'}
+function stockIcon(v){return v===0?'⭕':v<=5?'⚠️':'✅'}
+
+let cpT, toT;
+function copyMat(mat,btn){
+  navigator.clipboard.writeText(mat).then(()=>{
+    btn.classList.add('copied');btn.textContent='✓';
+    document.getElementById('toast').classList.add('show');
+    clearTimeout(toT);toT=setTimeout(()=>document.getElementById('toast').classList.remove('show'),2000);
+    clearTimeout(cpT);cpT=setTimeout(()=>{btn.classList.remove('copied');btn.textContent='⧉';},2000);
+  });
+}
+
+// ─── render ───────────────────────────────────────────────────────────────
+function renderPage() {
+  const start = (currentPage-1)*PAGE_SIZE;
+  const page  = filtered.slice(start, start+PAGE_SIZE);
+  const q     = document.getElementById('searchInput').value.trim();
+
+  document.getElementById('results').innerHTML = page.map(d => `
+    <div class="card">
+      <div class="card-inner">
+        <div class="card-top">
+          <div class="desc">${hl(d.desc,q)}</div>
+          <div class="mat-pill">
+            <span class="mat-num">${hl(d.mat,q)}</span>
+            <button class="copy-icon" onclick="copyMat('${d.mat}',this)" title="คัดลอก">⧉</button>
+          </div>
+        </div>
+        <div class="card-bottom">
+          <span class="tag ${stockCls(d.qty)}">${stockIcon(d.qty)} Stock: ${d.qty.toLocaleString()} ${d.unit}</span>
+          <span class="tag">📍 ${d.loc}</span>
+        </div>
+      </div>
+    </div>`).join('');
+
+  renderPagination();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function renderPagination(){
+  const total=Math.ceil(filtered.length/PAGE_SIZE);
+  const pg=document.getElementById('pagination');
+  if(total<=1){pg.innerHTML='';return;}
+  let h=`<button class="page-btn" onclick="goPage(${currentPage-1})" ${currentPage===1?'disabled':''}>‹ ก่อน</button>`;
+  let s=Math.max(1,currentPage-2),e=Math.min(total,s+4);
+  if(e-s<4)s=Math.max(1,e-4);
+  if(s>1)h+=`<button class="page-btn" onclick="goPage(1)">1</button>${s>2?'<span class="page-info">…</span>':''}`;
+  for(let i=s;i<=e;i++)h+=`<button class="page-btn ${i===currentPage?'active':''}" onclick="goPage(${i})">${i}</button>`;
+  if(e<total)h+=`${e<total-1?'<span class="page-info">…</span>':''}<button class="page-btn" onclick="goPage(${total})">${total}</button>`;
+  h+=`<button class="page-btn" onclick="goPage(${currentPage+1})" ${currentPage===total?'disabled':''}>ถัดไป ›</button>`;
+  h+=`<span class="page-info">${((currentPage-1)*PAGE_SIZE+1).toLocaleString()}–${Math.min(currentPage*PAGE_SIZE,filtered.length).toLocaleString()} จาก ${filtered.length.toLocaleString()}</span>`;
+  pg.innerHTML=h;
+}
+
+function goPage(p){
+  const total=Math.ceil(filtered.length/PAGE_SIZE);
+  if(p<1||p>total)return;
+  currentPage=p;renderPage();
+}
+
+function search(query){
+  const q=query.trim().toLowerCase();
+  filtered=q?SPAREPART_DATA.filter(d=>d.desc.toLowerCase().includes(q)||d.mat.includes(q)||d.loc.toLowerCase().includes(q)):SPAREPART_DATA;
+  document.getElementById('resultBar').innerHTML=q
+    ?`พบ <strong>${filtered.length.toLocaleString()}</strong> รายการ สำหรับ "<strong>${query.trim()}</strong>"`
+    :`แสดงทั้งหมด <strong>${SPAREPART_DATA.length.toLocaleString()}</strong> รายการ`;
+  if(!filtered.length){
+    document.getElementById('results').innerHTML=`<div class="empty-state"><div class="icon">🔎</div><p>ไม่พบ "<strong>${query.trim()}</strong>"</p><small>ลองค้นหาด้วยคำอื่น หรือตรวจสอบใน SAP โดยตรง</small><div class="hint-chips">${HINTS.map(h=>`<span class="chip" onclick="setQuery('${h}')">${h}</span>`).join('')}</div></div>`;
+    document.getElementById('pagination').innerHTML='';return;
+  }
+  currentPage=1;renderPage();
+}
+
+function setQuery(v){const i=document.getElementById('searchInput');i.value=v;i.dispatchEvent(new Event('input'));i.focus();}
+
+document.getElementById('searchInput').addEventListener('input',function(){
+  document.getElementById('clearBtn').classList.toggle('show',this.value.length>0);
+  search(this.value);
+});
+document.getElementById('clearBtn').addEventListener('click',()=>{
+  const i=document.getElementById('searchInput');i.value='';
+  document.getElementById('clearBtn').classList.remove('show');
+  search('');i.focus();
+});
+
+search('');
+</script>
+</body>
+</html>
